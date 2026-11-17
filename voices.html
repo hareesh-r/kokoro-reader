@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kokoro Voice Preview</title>
+<style>
+:root{--bg:#fafaf9;--card:#fff;--text:#1c1917;--muted:#78716c;--line:#e7e5e4;--accent:#D35400;--accent2:#C0392B}
+@media (prefers-color-scheme:dark){:root{--bg:#171413;--card:#211d1b;--text:#f5f5f4;--muted:#a8a29e;--line:#3a3532}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:14px 20px}
+h1{margin:0 0 4px;font-size:20px}
+h1 span{color:var(--accent)}
+#status{font-size:13px;color:var(--muted)}
+#status.err{color:var(--accent2)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+textarea{width:100%;min-height:62px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit;resize:vertical}
+select,input[type=text]{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font:inherit}
+input[type=text]{min-width:260px}
+label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:7px 12px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+main{padding:20px;max-width:1200px;margin:0 auto}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:26px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,box-shadow .15s}
+.card.playing{border-color:var(--accent);box-shadow:0 0 0 2px rgba(211,84,0,.25)}
+.card.loading{opacity:.7}
+.top{display:flex;justify-content:space-between;align-items:center}
+.name{font-size:18px;font-weight:600}
+.meta{font-size:13px;color:var(--muted)}
+.id{font-size:11px;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.star{border:none;background:none;font-size:20px;padding:0 2px;color:var(--muted);line-height:1}
+.star.on{color:var(--accent)}
+.actions{display:flex;gap:8px;margin-top:4px}
+.actions button{flex:1;padding:6px 8px;font-size:13px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>Kokoro <span>Voice Preview</span></h1>
+  <div id="status">Connecting to the voice server...</div>
+  <div class="row">
+    <select id="preset">
+      <option value="en">Sample: English</option>
+      <option value="ta">Sample: Tanglish</option>
+      <option value="doc">Sample: Long doc paragraph</option>
+    </select>
+    <label>Speed <input id="speed" type="range" min="0.7" max="2" step="0.05" value="1"> <b id="speedVal">1.0x</b></label>
+    <select id="lang"></select>
+    <select id="gender">
+      <option value="all">Male + Female</option>
+      <option value="Female">Female</option>
+      <option value="Male">Male</option>
+    </select>
+    <label><input id="onlyfav" type="checkbox"> Favorites only</label>
+    <label><input id="extras" type="checkbox"> Show extra variants</label>
+    <button id="playall" class="primary">Play all</button>
+    <button id="stop">Stop</button>
+  </div>
+  <div class="row"><textarea id="text"></textarea></div>
+  <div class="row">
+    <input id="mix" type="text" placeholder="Custom mix, e.g. af_heart(2)+af_bella(1)">
+    <button id="mixplay">Play mix</button>
+    <span class="meta">Mix any voice IDs shown on the cards. The number is the weight.</span>
+  </div>
+</header>
+<main id="main"></main>
+<div id="toast"></div>
+
+<script>
+const API = location.protocol === 'file:' ? 'http://localhost:8880' : location.origin;
+const SAMPLES = {
+  en: "Binary search cuts the problem in half at every step, so a million items need only about twenty comparisons. Listen to how this voice handles numbers, pauses and longer sentences.",
+  ta: "Machi, indha concept romba simple. Neenga oru array eduthukonga, apram mid element ah check pannunga. Puriyudha? Super, adutha topic poga ready.",
+  doc: "The quarterly plan has three priorities. First, ship the new onboarding flow before the end of the month. Second, reduce the average support response time to under four hours. Third, hire two engineers and one designer. Each priority has an owner, a deadline, and a weekly checkpoint, so nothing slips quietly."
+};
+const LANGS = {a:"American",b:"British",e:"Spanish",f:"French",h:"Hindi",i:"Italian",j:"Japanese",p:"Portuguese (BR)",z:"Mandarin"};
+const $ = s => document.querySelector(s);
+const audio = new Audio();
+const cache = new Map();
+let voices = [], token = 0, allRunning = false;
+let favs = new Set();
+try { favs = new Set(JSON.parse(localStorage.getItem("kfavs") || "[]")); } catch (e) {}
+function saveFavs(){ try { localStorage.setItem("kfavs", JSON.stringify([...favs])); } catch (e) {} }
+
+function cap(s){ return s.replace(/\b\w/g, c => c.toUpperCase()); }
+const GRADES = ["A","A-","B+","B","B-","C+","C","C-","D+","D","D-","F+","F","F-"];
+function parse(id, info){
+  info = info || {};
+  const grade = info.overall_grade || "";
+  const m = id.match(/^([a-z])([fm])_(.+)$/);
+  if (!m) return {id, name:id, lang:"Other", gender:"", variant:"", grade};
+  let rest = m[3], variant = "";
+  if (/_inno$/.test(rest)) { variant = "Inno-tuned"; rest = rest.replace(/_inno$/, ""); }
+  else if (/_tuned$/.test(rest)) { variant = "Tuned"; rest = rest.replace(/_tuned$/, ""); }
+  else if (/^v0/.test(rest)) { variant = "Legacy v0"; rest = rest.replace(/^v0/, ""); }
+  const name = rest ? cap(rest.replace(/_/g, " ")) : "Original";
+  return {id, name, lang: LANGS[m[1]] || "Other", gender: m[2] === "f" ? "Female" : "Male", variant, grade};
+}
+
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600); }
+function setStatus(msg, err){ const s = $("#status"); s.textContent = msg; s.className = err ? "err" : ""; }
+
+function cards(){ return [...document.querySelectorAll(".card")]; }
+function cardFor(id){ return cards().find(c => c.dataset.id === id); }
+function clearStates(){ cards().forEach(c => c.classList.remove("playing", "loading")); }
+function setState(id, st){ const c = cardFor(id); if (!c) return; c.classList.remove("playing", "loading"); if (st) c.classList.add(st); if (st === "playing") c.scrollIntoView({block:"nearest", behavior:"smooth"}); }
+
+async function getUrl(id){
+  const text = $("#text").value.trim() || "Hello";
+  const speed = parseFloat($("#speed").value);
+  const key = id + "|" + speed + "|" + text;
+  if (cache.has(key)) return cache.get(key);
+  const res = await fetch(API + "/v1/audio/speech", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({model:"kokoro", input:text, voice:id, response_format:"mp3", speed, stream:false})
+  });
+  if (!res.ok) throw new Error((await res.text()).slice(0, 200));
+  const url = URL.createObjectURL(await res.blob());
+  cache.set(key, url);
+  return url;
+}
+
+function stopAll(){ token++; audio.pause(); clearStates(); }
+
+async function playVoice(id){
+  const my = ++token;
+  audio.pause(); clearStates(); setState(id, "loading");
+  let url;
+  try { url = await getUrl(id); }
+  catch (e) { if (my === token) { setState(id, ""); toast("Error: " + e.message); } return false; }
+  if (my !== token) return false;
+  audio.src = url;
+  try { await audio.play(); } catch (e) { setState(id, ""); return false; }
+  setState(id, "playing");
+  await new Promise(res => {
+    const done = () => { audio.removeEventListener("ended", done); audio.removeEventListener("pause", done); res(); };
+    audio.addEventListener("ended", done); audio.addEventListener("pause", done);
+  });
+  if (my === token) setState(id, "");
+  return my === token;
+}
+
+async function playAll(){
+  const ids = cards().map(c => c.dataset.id);
+  if (!ids.length) return;
+  allRunning = true; $("#playall").textContent = "Playing...";
+  for (let i = 0; i < ids.length; i++) {
+    if (!allRunning) break;
+    if (ids[i + 1]) getUrl(ids[i + 1]).catch(() => {});
+    const ok = await playVoice(ids[i]);
+    if (!ok) break;
+  }
+  allRunning = false; $("#playall").textContent = "Play all";
+}
+
+function render(){
+  const lang = $("#lang").value, gender = $("#gender").value;
+  const extras = $("#extras").checked, onlyFav = $("#onlyfav").checked;
+  const list = voices.filter(v =>
+    (lang === "en" ? (v.lang === "American" || v.lang === "British") : (lang === "all" || v.lang === lang)) &&
+    (gender === "all" || v.gender === gender) &&
+    (extras || !v.variant) &&
+    (!onlyFav || favs.has(v.id)));
+  const order = ["American", "British"];
+  list.sort((a, b) => {
+    const la = order.indexOf(a.lang), lb = order.indexOf(b.lang);
+    if (la !== lb) return (la < 0 ? 99 : la) - (lb < 0 ? 99 : lb);
+    if (a.lang !== b.lang) return a.lang.localeCompare(b.lang);
+    if (a.gender !== b.gender) return a.gender === "Female" ? -1 : 1;
+    const ga = GRADES.indexOf(a.grade), gb = GRADES.indexOf(b.grade);
+    if (ga !== gb) return (ga < 0 ? 99 : ga) - (gb < 0 ? 99 : gb);
+    return a.name.localeCompare(b.name);
+  });
+  const main = $("#main"); main.innerHTML = "";
+  if (!list.length) { main.innerHTML = '<p class="meta">No voices match these filters.</p>'; return; }
+  let group = "", grid = null;
+  for (const v of list) {
+    const g = v.lang + " " + v.gender;
+    if (g !== group) {
+      group = g;
+      const h = document.createElement("h2"); h.textContent = v.lang + " " + (v.gender || "voices"); main.appendChild(h);
+      grid = document.createElement("div"); grid.className = "grid"; main.appendChild(grid);
+    }
+    const c = document.createElement("div"); c.className = "card"; c.dataset.id = v.id;
+    c.innerHTML = '<div class="top"><div class="name"></div><button class="star" title="Favorite">★</button></div>' +
+      '<div class="meta"></div><div class="id"></div>' +
+      '<div class="actions"><button class="play primary">▶ Play</button><button class="use">Use this</button></div>';
+    c.querySelector(".name").textContent = v.name;
+    const meta = c.querySelector(".meta"); meta.textContent = v.lang + " · " + v.gender;
+    if (v.grade) { const t = document.createElement("span"); t.className = "tag"; t.textContent = "Grade " + v.grade; meta.appendChild(t); }
+    if (v.variant) { const t = document.createElement("span"); t.className = "tag"; t.textContent = v.variant; meta.appendChild(t); }
+    c.querySelector(".id").textContent = v.id;
+    const star = c.querySelector(".star"); if (favs.has(v.id)) star.classList.add("on");
+    star.onclick = () => { favs.has(v.id) ? favs.delete(v.id) : favs.add(v.id); star.classList.toggle("on"); saveFavs(); };
+    c.querySelector(".play").onclick = () => { allRunning = false; $("#playall").textContent = "Play all"; playVoice(v.id); };
+    c.querySelector(".use").onclick = async () => {
+      try { await navigator.clipboard.writeText(v.id); } catch (e) {}
+      toast("Selected " + v.name + " (" + v.id + "). Tell Claude this ID.");
+    };
+    grid.appendChild(c);
+  }
+}
+
+async function init(){
+  $("#text").value = SAMPLES.en;
+  $("#preset").onchange = e => { $("#text").value = SAMPLES[e.target.value]; };
+  $("#speed").oninput = e => { $("#speedVal").textContent = parseFloat(e.target.value).toFixed(2).replace(/0$/, "") + "x"; };
+  ["gender", "extras", "onlyfav", "lang"].forEach(k => $("#" + k).addEventListener("change", render));
+  $("#playall").onclick = () => { if (!allRunning) playAll(); };
+  $("#stop").onclick = () => { allRunning = false; stopAll(); $("#playall").textContent = "Play all"; };
+  $("#mixplay").onclick = () => { const m = $("#mix").value.trim(); if (m) { allRunning = false; playVoice(m); } };
+  try {
+    const res = await fetch(API + "/v1/audio/voices");
+    const data = await res.json();
+    voices = (data.voices || data).map(v => typeof v === "string" ? parse(v) : parse(v.id, v));
+    const langs = [...new Set(voices.map(v => v.lang))].filter(l => l !== "American" && l !== "British");
+    $("#lang").innerHTML = '<option value="en">English (American + British)</option><option value="American">American only</option><option value="British">British only</option><option value="all">All languages</option>' +
+      langs.map(l => '<option value="' + l + '">' + l + '</option>').join("");
+    setStatus("Connected. " + voices.length + " voices on your Mac. Best graded voices come first in each group. Press Play on any card, or Play all.");
+    render();
+  } catch (e) {
+    setStatus("Problem: " + e.message + " (server: " + API + "). If the server is running, tell Claude this message.", true);
+  }
+}
+init();
+</script>
+</body>
+</html>
