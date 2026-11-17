@@ -1,145 +1,85 @@
 # Kokoro Reader
 
-Read Google Docs aloud with a natural local AI voice, with word by word highlighting drawn directly on the document. A free, open source, private alternative to Speechify.
+Read Google Docs aloud with a natural AI voice and a word by word highlight drawn right on the page. Free, open source and fully local, so your documents never leave your computer. A Speechify alternative with no subscription.
 
-Everything runs on your own computer. Your documents never leave your machine and there is no subscription.
+![Kokoro Reader reading a Google Doc](docs/hero.png)
 
-## What you get
+## Features
 
-- Natural voices from [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), running locally
-- Word by word highlight on the Google Doc itself, plus a softer highlight on the sentence being read
-- Six highlight themes: blue, pink, red, orange, green and purple, with a separate sentence color
-- Voice dropdown with every installed voice, a Preview button, and a custom blend option
-- Speed from 0.8x to 3x, previous and next sentence, a seek bar, and auto scroll that follows the reader
-- Alt+click any word in the document to start reading from there
-- Works on long documents with multiple pages, and at any Google Docs zoom level
-- Plays in the background while you work in other tabs, with media key support
+- Natural voices from [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), running on your machine
+- Word highlight plus a soft sentence highlight, in six colors
+- Voice picker with preview and custom blends, speed from 0.8x to 3x
+- Previous and next sentence, seek bar, auto scroll
+- Alt+click any word to start from there
+- Works on long docs, any zoom level, light and dark docs
 
 ## Install
 
-You need two parts: the voice server (one command) and the Chrome extension.
-
-### 1. Voice server (macOS or Linux)
+**1. Voice server** (macOS or Linux, one command)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hareesh-r/kokoro-reader/main/install.sh | bash
 ```
 
-Or clone the repo and double click `Install Kokoro Reader.command` on macOS, or run `./install.sh`.
+It sets up the Kokoro server and model (about 330 MB) and starts it at login. On macOS you can also double click `Install Kokoro Reader.command`. Manage it with `kokoro-reader status | start | stop | restart | logs | uninstall`.
 
-The installer sets up Python with uv, downloads the Kokoro server and the voice model (about 330 MB), and starts the server at login so it is always ready. The first run takes a few minutes.
+Windows: use WSL, or run `docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu`.
 
-Manage it any time with the `kokoro-reader` command:
+**2. Chrome extension**
 
-```
-kokoro-reader status        is it running
-kokoro-reader start | stop | restart
-kokoro-reader logs          follow the server log
-kokoro-reader autostart on|off
-kokoro-reader uninstall     remove everything it installed
-```
-
-If the command is not found, add `~/.local/bin` to your PATH.
-
-Windows is not supported by the installer. Use WSL, or run the Kokoro server with Docker (`docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu`) and point the extension at it in Settings.
-
-### 2. Chrome extension
-
-1. Download `kokoro-reader-extension-x.y.z.zip` from the Releases page and unzip it, or use the `extension` folder from this repo.
-2. Open `chrome://extensions` and turn on Developer mode.
-3. Click Load unpacked and choose the extension folder.
-4. Open a Google Doc and press Alt+Shift+L, or click the extension icon.
+1. Download the zip from [Releases](../../releases) and unzip it, or use the `extension` folder of this repo
+2. Open `chrome://extensions` and turn on Developer mode
+3. Click Load unpacked and pick the extension folder
+4. Open a Google Doc and press Alt+Shift+L
 
 ## Use
 
 | Action | How |
 | --- | --- |
 | Open or close the panel | Alt+Shift+L |
-| Play or pause | Alt+Shift+P, or Space inside the panel |
-| Previous or next sentence | Left and Right arrows, or the panel buttons |
-| Start from a word | Alt+click the word on the document |
-| Change voice | Voice dropdown, then Preview to hear it |
-| Change colors | Gear icon, Highlight and Sentence rows |
+| Play or pause | Alt+Shift+P |
+| Previous or next sentence | Left and Right arrows |
+| Start from a word | Alt+click it |
+| Change voice | Voice dropdown, then Preview |
 
-Shortcuts can be changed at `chrome://extensions/shortcuts`.
+Shortcuts can be changed at `chrome://extensions/shortcuts`. For a custom voice blend choose Custom blend and join voices with a plus, for example `af_bella+af_nicole`.
 
-### Voices
-
-The dropdown lists every voice your server has, grouped by accent and gender. The default is a blend of `af_heart` and `af_sarah`. To make your own blend choose Custom blend and join voices with a plus sign, for example `af_bella+af_nicole`. You can also weight them, for example `af_heart(2)+af_sarah(1)`.
-
-### Light and dark mode
-
-The highlight always matches the page on screen: a light Doc gets the normal colored highlight, a dark Doc gets a glowing one that keeps light text readable. The sun or moon button in the panel header only switches the panel itself. It starts out matching your Doc, and your choice is remembered.
-
-### Small button
-
-Press the shrink button in the header to turn the panel into a tiny pill with play and pause plus an expand button. Drag the pill, or drag the panel by its header, to put it anywhere on screen. The position is remembered.
-
-### Themes
-
-Pick a Highlight color for the current word and its matching sentence tint. In the Sentence row you can choose a different color, match the highlight, or turn the sentence highlight off.
-
-## How it works
-
-Google Docs draws its pages on canvas, so there is no text in the page to highlight. Kokoro Reader works in three steps:
-
-1. It gets the document text through the official export endpoint, using your signed in session.
-2. It sends the text to your local Kokoro server, which returns audio and a timestamp for every word.
-3. It looks at the pixels of each rendered page, finds the lines and words, and matches them to the text using the Arial letter widths. The highlight is then drawn as a transparent layer on top of the page, aligned to those word boxes.
-
-The layer follows scrolling and zoom changes. If the page match fails, the panel falls back to showing the text with highlighting inside the panel.
-
-## Settings
-
-Open the gear icon in the panel.
-
-- Server: where the Kokoro server lives, default `http://localhost:8880`
-- Auto-scroll, Start when opened, Highlight on the Google Doc, Show text in panel
-- Reload document text, Check server, Check page match, and Copy debug report (copies a log of recent highlight events to your clipboard)
+| Dark docs | Settings |
+| --- | --- |
+| ![Dark mode](docs/dark.png) | ![Settings](docs/settings.png) |
 
 ## Troubleshooting
 
-- Panel says it cannot reach the server: run `kokoro-reader status`, then `kokoro-reader start`. Check `kokoro-reader logs` for errors.
-- No highlight on the page but audio plays: press Check page match and open an issue with the line it prints, your Docs zoom level and whether your screen is retina.
-- Highlight stopped after changing the Docs zoom: wait a second, the page is re-read automatically. If it does not recover, press Reload document text.
-- Browser blocks audio: press the play button once. Chrome requires a click before it allows sound.
-- Port 8880 is taken: set `KOKORO_PORT=9000` before installing, then change the Server in Settings.
+- **Cannot reach the server:** run `kokoro-reader status`, then `kokoro-reader start`
+- **Audio plays but no highlight:** open Settings, press Check page match, and share the output in an issue
+- **Highlight lost after zooming:** wait a second, or press Reload document text in Settings
+- **No sound:** press play once, Chrome needs a click first
+- **Port 8880 taken:** install with `KOKORO_PORT=9000` and update Server in Settings
 
-## Reporting a problem
+To report a bug, press Copy debug report in Settings and paste it into an issue. It has timings and match scores only, no document text.
 
-1. Reproduce it (for example change zoom or color while reading).
-2. Open the gear in the panel and press Copy debug report.
-3. Paste it into a GitHub issue, with your Docs zoom level and whether your screen is retina.
+## How it works
 
-The report holds timings, match scores and counts of missed words. It has no document text and the doc id is truncated. Nothing is sent anywhere automatically.
+Google Docs draws pages on canvas, so there is no text to highlight. The extension reads the doc text through the export endpoint, gets audio and word timestamps from your local server, then matches each rendered line and word on the page by pixel and letter width. The highlight is a transparent layer on top.
 
 ## Limits
 
-- Chrome only for now (Chromium browsers should work but are untested)
-- Google Docs only
-- Kokoro covers English best. It also has voices for Spanish, French, Hindi, Italian, Japanese, Portuguese and Chinese, but not Tamil
-- Tables, images and text inside drawings are skipped or matched loosely
-- Highlight placement is a visual match, so unusual fonts or heavy formatting can reduce accuracy
-
-## Repository layout
-
-```
-extension/   Chrome extension (Manifest V3): overlay.js draws the highlight, log.js keeps the debug log
-server/      kokoro-reader command: installs and manages the local voice server
-install.sh   one line installer
-scripts/     build-extension.sh creates a release zip
-```
-
-Build the release zip with `bash scripts/build-extension.sh`. Pushing a tag like `v0.3.8` publishes a release with the zip and installer through GitHub Actions.
+- Chrome and Google Docs only for now
+- Best with English. Kokoro has other languages but not Tamil
+- Tables and drawings are matched loosely, and unusual fonts can reduce accuracy
 
 ## Privacy
 
-The extension talks only to Google Docs (to read the document you are on) and to your local server. No analytics, no accounts, no cloud voice service.
+The extension only talks to Google Docs and your local server. No analytics, no accounts, no cloud voice.
+
+## Development
+
+`extension/` is the Manifest V3 extension, `server/` is the `kokoro-reader` command, `scripts/build-extension.sh` makes the release zip. Pushing a tag like `v0.3.8` publishes a release through GitHub Actions.
 
 ## Credits
 
-Voice model by [hexgrad](https://huggingface.co/hexgrad/Kokoro-82M). Server by [remsky/Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI). Kokoro Reader is not affiliated with Google or Speechify.
+Voice model by [hexgrad](https://huggingface.co/hexgrad/Kokoro-82M), server by [remsky/Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI). Not affiliated with Google or Speechify.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
