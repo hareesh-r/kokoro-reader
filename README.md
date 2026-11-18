@@ -15,22 +15,30 @@ Read Google Docs aloud with a natural AI voice and a word by word highlight draw
 
 ## Install
 
-**1. Voice server** (macOS or Linux, one command)
+Download from the [latest release](../../releases/latest):
+
+| Your system | Download |
+| --- | --- |
+| macOS | `KokoroReader-x.y.z.dmg`, open it and double click Install Kokoro Reader |
+| Windows | `KokoroReader-Setup-x.y.z.exe` |
+| Chrome extension | `kokoro-reader-extension-x.y.z.zip` |
+
+The installers set up the local voice server and download the voice model (about 330 MB). They are not code signed yet, so macOS says the developer cannot be verified (right click the app, then Open) and Windows SmartScreen shows a warning (More info, then Run anyway).
+
+Then load the extension:
+
+1. Unzip the extension, or use the folder the installer opened
+2. Open `chrome://extensions` and turn on Developer mode
+3. Click Load unpacked and pick the extension folder
+4. Open a Google Doc and press Alt+Shift+L
+
+**Terminal install (macOS or Linux)**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hareesh-r/kokoro-reader/main/install.sh | bash
 ```
 
-It sets up the Kokoro server and model (about 330 MB) and starts it at login. On macOS you can also double click `Install Kokoro Reader.command`. Manage it with `kokoro-reader status | start | stop | restart | logs | uninstall`.
-
-Windows: use WSL, or run `docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu`.
-
-**2. Chrome extension**
-
-1. Download the zip from [Releases](../../releases) and unzip it, or use the `extension` folder of this repo
-2. Open `chrome://extensions` and turn on Developer mode
-3. Click Load unpacked and pick the extension folder
-4. Open a Google Doc and press Alt+Shift+L
+Manage the server with `kokoro-reader status | start | stop | restart | logs | uninstall`. On Windows the same commands run as `powershell -ExecutionPolicy Bypass -File kokoro-reader.ps1 status` from the install folder. You can also run the server with Docker: `docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu`.
 
 ## Use
 
@@ -74,7 +82,7 @@ The extension only talks to Google Docs and your local server. No analytics, no 
 
 ## Development
 
-`extension/` is the Manifest V3 extension, `server/` is the `kokoro-reader` command, `scripts/build-extension.sh` makes the release zip. Pushing a tag like `v0.3.8` publishes a release through GitHub Actions.
+`extension/` is the Manifest V3 extension. `server/` and `windows/` hold the `kokoro-reader` server command for macOS or Linux and for Windows. `macos/` and `scripts/build-dmg.sh` build the dmg, `windows/installer.iss` builds the exe, and `scripts/build-extension.sh` makes the extension zip. Pushing a tag like `v0.3.8` builds all three and publishes a release through GitHub Actions.
 
 ## Credits
 
