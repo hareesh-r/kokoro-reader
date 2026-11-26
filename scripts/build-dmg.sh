@@ -39,6 +39,7 @@ if command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
 fi
 
 cp macos/README.txt "$STAGE/READ ME FIRST.txt"
+cp macos/install.command "$STAGE/Install Kokoro Reader (backup).command"; chmod +x "$STAGE/Install Kokoro Reader (backup).command"
 command -v codesign >/dev/null 2>&1 && codesign --force --deep --sign - "$APP" || true
 
 if command -v hdiutil >/dev/null 2>&1; then

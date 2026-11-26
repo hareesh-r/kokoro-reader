@@ -7,7 +7,7 @@ Upload `kokoro-reader-extension-<version>.zip` from the Releases page.
 
 **Name:** Kokoro Reader
 
-**Summary (max 132 chars):** Read Google Docs aloud with a free local AI voice and a word by word highlight. Private, no subscription.
+**Summary (max 132 chars):** Read any web page or Google Doc aloud with a free local AI voice and word highlight. Private, no subscription.
 
 **Category:** Productivity
 
@@ -15,7 +15,7 @@ Upload `kokoro-reader-extension-<version>.zip` from the Releases page.
 
 **Description:**
 
-Kokoro Reader reads your Google Docs aloud with a natural AI voice and highlights each word on the page as it is spoken. It is a free, private alternative to paid read aloud tools.
+Kokoro Reader reads any web page or Google Doc aloud with a natural AI voice and highlights each word on the page as it is spoken. Select text to read just that, or click the icon (Alt+Shift+L) to read the main article. It is a free, private alternative to paid read aloud tools.
 
 Everything runs on your own computer. Your documents are never sent to the cloud, and there is no account or subscription.
 
@@ -24,15 +24,17 @@ Features
 - Word highlight plus a soft sentence highlight, in six colors
 - Voice picker with preview, speed from 0.8x to 3x, seek bar, auto scroll
 - Alt+click any word to start reading from there
-- Works on long documents, at any zoom level, in light and dark docs
+- Works on any site, on long documents, at any zoom level, in light and dark pages
 
 You need the free local voice server for this extension to work. Install it with the one line command or the Mac and Windows installers at https://github.com/hareesh-r/kokoro-reader
 
 ## Privacy tab
 
-**Single purpose:** Read the open Google Doc aloud with a local text to speech server and highlight the spoken words on the page.
+**Single purpose:** Read the current page or Google Doc aloud with a local text to speech server and highlight the spoken words on the page.
 
 **Permission justifications**
+- `activeTab`: after the user clicks the toolbar icon or presses the shortcut, lets the extension read the selected text or main article of that one tab and draw the highlight on it. It has no access to other tabs and does nothing until the user acts.
+- `scripting`: loads the reader into the tab the user chose, after that click or shortcut.
 - `storage`: saves the user's settings (voice, speed, colors, server address).
 - `https://docs.google.com/*`: reads the text of the open document and draws the highlight on the page.
 - `https://*.googleusercontent.com/*`: loads document resources needed to match the page.

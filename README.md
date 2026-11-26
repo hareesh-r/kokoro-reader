@@ -1,6 +1,6 @@
 # Kokoro Reader
 
-Read Google Docs aloud with a natural AI voice and a word by word highlight drawn right on the page. Free, open source and fully local, so your documents never leave your computer. A Speechify alternative with no subscription.
+Read any web page or Google Doc aloud with a natural AI voice and a word by word highlight drawn right on the page. Free, open source and fully local, so your text never leaves your computer. A Speechify alternative with no subscription.
 
 ![Kokoro Reader reading a Google Doc](docs/hero.png)
 
@@ -11,6 +11,7 @@ Read Google Docs aloud with a natural AI voice and a word by word highlight draw
 - Voice picker with preview and custom blends, speed from 0.8x to 3x
 - Previous and next sentence, seek bar, auto scroll
 - Alt+click any word to start from there
+- Works on any website: reads your selection, or the main article if nothing is selected
 - Works on long docs, any zoom level, light and dark docs
 
 ## Install
@@ -23,14 +24,14 @@ Download from the [latest release](../../releases/latest):
 | Windows | `KokoroReader-Setup-x.y.z.exe` |
 | Chrome extension | `kokoro-reader-extension-x.y.z.zip` |
 
-The installers set up the local voice server and download the voice model (about 330 MB). They are not code signed yet, so macOS says the developer cannot be verified (right click the app, then Open) and Windows SmartScreen shows a warning (More info, then Run anyway).
+The installers set up the local voice server and download the voice model (about 330 MB). They are not code signed yet. On macOS, if double clicking does nothing, open System Settings, Privacy & Security, and click Open Anyway next to Install Kokoro Reader (or run the Terminal install below). On Windows, SmartScreen shows a warning: click More info, then Run anyway.
 
 Then load the extension:
 
 1. Unzip the extension, or use the folder the installer opened
 2. Open `chrome://extensions` and turn on Developer mode
 3. Click Load unpacked and pick the extension folder
-4. Open a Google Doc and press Alt+Shift+L
+4. Open any page or Google Doc and press Alt+Shift+L
 
 **Terminal install (macOS or Linux)**
 
@@ -44,7 +45,8 @@ Manage the server with `kokoro-reader status | start | stop | restart | logs | u
 
 | Action | How |
 | --- | --- |
-| Open or close the panel | Alt+Shift+L |
+| Open or close the panel | Alt+Shift+L, or click the toolbar icon |
+| Read part of a page | Select the text first, then Alt+Shift+L |
 | Play or pause | Alt+Shift+P |
 | Previous or next sentence | Left and Right arrows |
 | Start from a word | Alt+click it |
@@ -82,7 +84,7 @@ The extension only talks to Google Docs and your local server. No analytics, no 
 
 ## Development
 
-`extension/` is the Manifest V3 extension. `server/` and `windows/` hold the `kokoro-reader` server command for macOS or Linux and for Windows. `macos/` and `scripts/build-dmg.sh` build the dmg, `windows/installer.iss` builds the exe, and `scripts/build-extension.sh` makes the extension zip. Pushing a tag like `v0.3.8` builds all three and publishes a release through GitHub Actions.
+`extension/` is the Manifest V3 extension. `server/` and `windows/` hold the `kokoro-reader` server command for macOS or Linux and for Windows. `macos/` and `scripts/build-dmg.sh` build the dmg, `windows/installer.iss` builds the exe, and `scripts/build-extension.sh` makes the extension zip. Pushing a tag like `v0.4.0` builds all three and publishes a release through GitHub Actions.
 
 ## Credits
 

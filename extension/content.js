@@ -4,8 +4,9 @@
   if (window.__krLoaded) return;
   window.__krLoaded = true;
   var KR = window.KR;
+  var isDocs = location.hostname === 'docs.google.com' && /^\/document\//.test(location.pathname);
   function LOG(t, d) { if (window.KRLOG) KRLOG.add(t, d); }
-  if (window.KRLOG) KRLOG.version = '0.3.8';
+  if (window.KRLOG) KRLOG.version = '0.4.0';
 
   var DEFAULTS = { voice: 'af_heart+af_sarah', server: 'http://localhost:8880', rate: 1, autoscroll: true, autostart: true, onpage: true, showtext: false, theme: 'orange', sentTheme: 'match', mode: null, mini: false, pos: null, miniPos: null };
   var THEMES = {
@@ -130,7 +131,7 @@ input[type=range]{width:calc(100% - 24px);margin:6px 12px 0;accent-color:var(--r
 
   var HTML = '\
 <div class="panel" id="panel">\
- <div class="hd"><div class="ttl"><b>Kokoro Reader v0.3.8</b><span id="doctitle"></span></div>\
+ <div class="hd"><div class="ttl"><b>Kokoro Reader v0.4.0</b><span id="doctitle"></span></div>\
   <button class="ib" id="mode" title="Switch theme"><svg class="sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button><button class="ib" id="shrink" title="Shrink to a small button"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button><button class="ib" id="min" title="Collapse panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button><button class="ib" id="close" title="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>\
  <div class="ctl">\
   <button class="ib" id="prev" title="Previous sentence"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg></button>\
@@ -150,7 +151,7 @@ input[type=range]{width:calc(100% - 24px);margin:6px 12px 0;accent-color:var(--r
   <label>Server <input type="text" id="server" spellcheck="false"></label>\
   <div class="row"><span class="chk"><input type="checkbox" id="autoscroll"><label style="display:inline">Auto-scroll</label></span>\
    <span class="chk"><input type="checkbox" id="autostart"><label style="display:inline">Start when opened</label></span></div>\
-  <div class="row"><span class="chk"><input type="checkbox" id="onpage"><label style="display:inline">Highlight on the Google Doc</label></span>\
+  <div class="row"><span class="chk"><input type="checkbox" id="onpage"><label style="display:inline">Highlight on the page</label></span>\
    <span class="chk"><input type="checkbox" id="showtext"><label style="display:inline">Show text in panel</label></span></div>\
   <div class="row"><button id="reload">Reload document text</button><button id="check">Check server</button><button id="diag">Check page match</button><button id="dbg">Copy debug report</button></div>\
  </div>\
@@ -433,7 +434,7 @@ input[type=range]{width:calc(100% - 24px);margin:6px 12px 0;accent-color:var(--r
   }
 
   function panelOpen() { return !!host && host.style.display !== 'none'; }
-  function docTitle() { return (document.title || 'Document').replace(/ - Google Docs$/, ''); }
+  function docTitle() { return (document.title || (isDocs ? 'Document' : location.hostname)).replace(/ - Google Docs$/, ''); }
 
   async function openPanel(forceStart) {
     if (!settingsLoaded) await loadSettings();
@@ -487,9 +488,17 @@ input[type=range]{width:calc(100% - 24px);margin:6px 12px 0;accent-color:var(--r
   }
 
   async function loadText() {
-    setBusy(false); setInfo('Reading document text...');
+    setBusy(false); setInfo(isDocs ? 'Reading document text...' : 'Reading this page...');
     var raw;
-    try { raw = await fetchDocText(); }
+    try {
+      if (isDocs) raw = await fetchDocText();
+      else {
+        if (!window.KRP) throw new Error('Page reader missing.');
+        var ex = KRP.extract();
+        raw = ex.text;
+        if (host) el.doctitle.textContent = docTitle() + (ex.mode === 'selection' ? '  ·  selected text' : '');
+      }
+    }
     catch (e) {
       el.pastemsg.textContent = String(e.message || e) + ' Paste the text below instead.';
       el.paste.hidden = false;
@@ -507,7 +516,7 @@ input[type=range]{width:calc(100% - 24px);margin:6px 12px 0;accent-color:var(--r
     M = KR.buildModel(raw);
     updatePlayBtn();
     if (window.KRO) KRO.detach();
-    if (!M.words.length) { el.text.textContent = ''; setInfo('This document has no text to read.', true); return false; }
+    if (!M.words.length) { el.text.textContent = ''; setInfo(isDocs ? 'This document has no text to read.' : 'No readable text found on this page. Select some text and press Alt+Shift+L.', true); return false; }
     renderText();
     el.prog.max = String(M.words.length - 1); el.prog.value = '0';
     attachOverlay();

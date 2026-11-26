@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Kokoro Reader",
-  "version": "0.3.8",
-  "description": "Read Google Docs aloud with your local Kokoro voice, with word by word highlighting.",
+  "version": "0.4.0",
+  "description": "Read any web page or Google Doc aloud with your local Kokoro voice, with word by word highlighting.",
   "icons": {
     "16": "icon16.png",
     "32": "icon32.png",
@@ -10,7 +10,7 @@
     "128": "icon128.png"
   },
   "action": {
-    "default_title": "Read this document aloud (Alt+Shift+L)",
+    "default_title": "Read this page aloud (Alt+Shift+L)",
     "default_icon": {
       "16": "icon16.png",
       "32": "icon32.png"
@@ -20,7 +20,9 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://docs.google.com/*",

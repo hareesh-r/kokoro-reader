@@ -54,10 +54,21 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   return true;
 });
 
+var PAGE_FILES = ['log.js', 'lib.js', 'pagemode.js', 'content.js'];
+
+/* Docs tabs already have the reader. On any other page it is injected on demand,
+   only after the user clicks the icon or presses the shortcut (activeTab). */
 function sendToActiveTab(msg) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (!tabs || !tabs[0]) return;
-    chrome.tabs.sendMessage(tabs[0].id, msg, function () { void chrome.runtime.lastError; });
+    var id = tabs[0].id;
+    chrome.tabs.sendMessage(id, msg, function () {
+      if (!chrome.runtime.lastError) return;
+      chrome.scripting.executeScript({ target: { tabId: id }, files: PAGE_FILES }, function () {
+        if (chrome.runtime.lastError) return; // restricted page such as chrome:// or the Web Store
+        setTimeout(function () { chrome.tabs.sendMessage(id, msg, function () { void chrome.runtime.lastError; }); }, 80);
+      });
+    });
   });
 }
 
